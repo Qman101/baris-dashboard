@@ -511,6 +511,10 @@ let charts = {};
 // ── Auth ──────────────────────────────────────────────────────────────────────
 async function login() {
   try {
+    if (!msalReady) {
+      await msalInstance.initialize();
+      msalReady = true;
+    }
     const result = await msalInstance.loginPopup({ scopes: SCOPES });
     msalInstance.setActiveAccount(result.account);
     await initApp();
@@ -883,8 +887,11 @@ function updateTopTable(top50) {
 }
 
 // ── Štart ─────────────────────────────────────────────────────────────────────
+let msalReady = false;
+
 (async () => {
   await msalInstance.initialize();
+  msalReady = true;
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length > 0) {
     msalInstance.setActiveAccount(accounts[0]);
