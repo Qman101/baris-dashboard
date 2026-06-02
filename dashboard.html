@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baris Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #181c27;
+    --bg3: #1e2333;
+    --border: #2a3050;
+    --accent: #4f8ef7;
+    --accent2: #38e8c0;
+    --accent3: #f7b84f;
+    --danger: #f74f6a;
+    --text: #e8eaf0;
+    --text2: #8891aa;
+    --font: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Login screen ── */
+  #login-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 24px;
+  }
+
+  .login-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px;
+    text-align: center;
+    max-width: 400px;
+    width: 100%;
+  }
+
+  .login-logo {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .login-sub {
+    color: var(--text2);
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+
+  .btn-login {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    transition: opacity 0.2s;
+  }
+  .btn-login:hover { opacity: 0.85; }
+
+  /* ── Main layout ── */
+  #app { display: none; }
+
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+  }
+
+  .header-user {
+    font-size: 13px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn-logout {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-logout:hover { border-color: var(--accent); color: var(--accent); }
+
+  .main {
+    padding: 24px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  /* ── Filters ── */
+  .filters {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    margin-bottom: 24px;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 180px;
+  }
+
+  .filter-group label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text2);
+  }
+
+  .filter-group select, .filter-group input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: var(--font);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .filter-group select:focus, .filter-group input:focus {
+    border-color: var(--accent);
+  }
+
+  .btn-apply {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 9px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    align-self: flex-end;
+  }
+  .btn-apply:hover { opacity: 0.85; }
+
+  /* ── KPI cards ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .kpi-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent-color, var(--accent));
+  }
+
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+
+  .kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--text);
+    font-family: var(--font-mono);
+  }
+
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 4px;
+  }
+
+  /* ── Charts grid ── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+
+  .chart-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .chart-card.full { grid-column: 1 / -1; }
+
+  .chart-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text2);
+    margin-bottom: 16px;
+  }
+
+  .chart-wrap { position: relative; height: 280px; }
+
+  /* ── Table ── */
+  .table-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+  }
+
+  .table-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text2);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .tab-btns { display: flex; gap: 8px; margin-left: auto; }
+
+  .tab-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+
+  .rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+  }
+
+  .rank-1 { background: #f7b84f22; color: var(--accent3); }
+  .rank-2 { background: #8891aa22; color: var(--text2); }
+  .rank-3 { background: #cd7f3222; color: #cd7f32; }
+  .rank-n { background: var(--bg3); color: var(--text2); }
+
+  /* ── Loading ── */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    color: var(--text2);
+    font-size: 14px;
+    gap: 12px;
+  }
+
+  .spinner {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card.full { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Baris</div>
+    <div class="login-sub">Obchodný dashboard · Prihláste sa Microsoft účtom</div>
+    <button class="btn-login" onclick="login()">Prihlásiť sa cez Microsoft</button>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <header>
+    <div class="header-title">Baris Dashboard</div>
+    <div class="header-user">
+      <span id="user-name"></span>
+      <button class="btn-logout" onclick="logout()">Odhlásiť</button>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <!-- Filters -->
+    <div class="filters">
+      <div class="filter-group">
+        <label>Skupina predajní</label>
+        <select id="sel-skupina" onchange="onSkupinaChange()">
+          <option value="">Všetky predajne</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Predajňa</label>
+        <select id="sel-pobocka">
+          <option value="">Všetky</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Dátum od</label>
+        <input type="date" id="dat-od">
+      </div>
+      <div class="filter-group">
+        <label>Dátum do</label>
+        <input type="date" id="dat-do">
+      </div>
+      <button class="btn-apply" onclick="applyFilters()">Použiť filtre</button>
+    </div>
+
+    <!-- KPI -->
+    <div class="kpi-grid">
+      <div class="kpi-card" style="--accent-color: var(--accent)">
+        <div class="kpi-label">Celková tržba</div>
+        <div class="kpi-value" id="kpi-trzba">—</div>
+        <div class="kpi-sub" id="kpi-trzba-sub"></div>
+      </div>
+      <div class="kpi-card" style="--accent-color: var(--accent2)">
+        <div class="kpi-label">Počet dokladov</div>
+        <div class="kpi-value" id="kpi-doklady">—</div>
+        <div class="kpi-sub" id="kpi-doklady-sub"></div>
+      </div>
+      <div class="kpi-card" style="--accent-color: var(--accent3)">
+        <div class="kpi-label">Priemerný nákup</div>
+        <div class="kpi-value" id="kpi-kosik">—</div>
+        <div class="kpi-sub">EUR / doklad</div>
+      </div>
+      <div class="kpi-card" style="--accent-color: var(--danger)">
+        <div class="kpi-label">Predané kusy</div>
+        <div class="kpi-value" id="kpi-kusy">—</div>
+        <div class="kpi-sub" id="kpi-kusy-sub"></div>
+      </div>
+      <div class="kpi-card" style="--accent-color: #a78bfa">
+        <div class="kpi-label">Počet predajní</div>
+        <div class="kpi-value" id="kpi-pobocky">—</div>
+        <div class="kpi-sub">aktívnych predajní</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card full">
+        <div class="chart-title">Tržba po dňoch</div>
+        <div class="chart-wrap"><canvas id="chart-predaje"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Tržba podľa predajne (Top 15)</div>
+        <div class="chart-wrap"><canvas id="chart-pobocky"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Zásoby — hodnota po mesiacoch</div>
+        <div class="chart-wrap"><canvas id="chart-zasoby"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Top 50 table -->
+    <div class="table-card">
+      <div class="table-title">
+        Top položky
+        <div class="tab-btns">
+          <button class="tab-btn active" onclick="setTopMode('trzba', this)">Podľa tržby</button>
+          <button class="tab-btn" onclick="setTopMode('ks', this)">Podľa kusov</button>
+        </div>
+      </div>
+      <div id="top-table-wrap"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Konfigurácia ──────────────────────────────────────────────────────────────
+const TENANT_ID   = "9f2932b2-e127-4c0e-95e7-a60b0f80a73f";   // Directory (tenant) ID
+const CLIENT_ID   = "449a1aee-a1e7-44a6-a008-2f1faf9e1b94";   // Application (client) ID
+const SP_SITE     = "https://krajcik.sharepoint.com/sites/BarisDATA";
+const SP_FOLDER   = "Zdielane dokumenty/Shared Documents/dashboard_data";
+
+const msalConfig = {
+  auth: {
+    clientId: CLIENT_ID,
+    authority: `https://login.microsoftonline.com/${TENANT_ID}`,
+    redirectUri: window.location.href.split('?')[0]
+  },
+  cache: { cacheLocation: "sessionStorage" }
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+const SCOPES = ["https://graph.microsoft.com/Sites.Read.All"];
+
+// ── Stav aplikácie ────────────────────────────────────────────────────────────
+let DATA = { predaje: [], top50: [], pobocky: [], zasoby: [] };
+let siteId = null;
+let topMode = 'trzba';
+let charts = {};
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function login() {
+  try {
+    const result = await msalInstance.loginPopup({ scopes: SCOPES });
+    msalInstance.setActiveAccount(result.account);
+    await initApp();
+  } catch (e) {
+    alert("Prihlásenie zlyhalo: " + e.message);
+  }
+}
+
+function logout() {
+  msalInstance.logoutPopup();
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+async function getToken() {
+  const account = msalInstance.getActiveAccount();
+  if (!account) throw new Error("Nie ste prihlásený");
+  const result = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account });
+  return result.accessToken;
+}
+
+// ── Graph API ─────────────────────────────────────────────────────────────────
+async function graphGet(url) {
+  const token = await getToken();
+  const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) throw new Error(`Graph API chyba: ${r.status}`);
+  return r.json();
+}
+
+async function getSiteId() {
+  if (siteId) return siteId;
+  const host = SP_SITE.split("/")[2];
+  const path = "/" + SP_SITE.split("/").slice(3).join("/");
+  const data = await graphGet(`https://graph.microsoft.com/v1.0/sites/${host}:${path}:`);
+  siteId = data.id;
+  return siteId;
+}
+
+async function fetchJson(filename) {
+  const sid = await getSiteId();
+  const filePath = `${SP_FOLDER}/${filename}`;
+  const meta = await graphGet(
+    `https://graph.microsoft.com/v1.0/sites/${sid}/drive/root:/${filePath}`
+  );
+  const r = await fetch(meta["@microsoft.graph.downloadUrl"]);
+  const json = await r.json();
+  return json.data || [];
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function initApp() {
+  const account = msalInstance.getActiveAccount();
+  document.getElementById('user-name').textContent = account?.name || account?.username || '';
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  document.getElementById('top-table-wrap').innerHTML = '<div class="loading"><div class="spinner"></div> Načítavam dáta...</div>';
+
+  try {
+    const [predaje, top50, pobocky, zasoby] = await Promise.all([
+      fetchJson('predaje.json'),
+      fetchJson('top_polozky.json'),
+      fetchJson('pobocky.json'),
+      fetchJson('zasoby.json'),
+    ]);
+    DATA = { predaje, top50, pobocky, zasoby };
+    setupFilters();
+    setDefaultDates();
+    applyFilters();
+  } catch (e) {
+    document.getElementById('top-table-wrap').innerHTML = `<div class="loading">Chyba načítania: ${e.message}</div>`;
+  }
+}
+
+// ── Filtre ────────────────────────────────────────────────────────────────────
+function setupFilters() {
+  const skupiny = DATA.pobocky.filter(p => p.id < 0);
+  const predajne = DATA.pobocky.filter(p => p.id > 0);
+
+  const selSkup = document.getElementById('sel-skupina');
+  skupiny.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.nazov;
+    selSkup.appendChild(opt);
+  });
+
+  const selPob = document.getElementById('sel-pobocka');
+  predajne.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.nazov;
+    selPob.appendChild(opt);
+  });
+}
+
+function parseSKUP(skup) {
+  if (!skup) return null;
+  const inMatch = skup.match(/IN\s*\(([^)]+)\)/i);
+  if (inMatch) {
+    return inMatch[1].split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x) && x > 0);
+  }
+  return null;
+}
+
+function onSkupinaChange() {
+  const skupId = parseInt(document.getElementById('sel-skupina').value);
+  const selPob = document.getElementById('sel-pobocka');
+  selPob.innerHTML = '<option value="">Všetky</option>';
+
+  if (!skupId) {
+    DATA.pobocky.filter(p => p.id > 0).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.nazov;
+      selPob.appendChild(opt);
+    });
+    return;
+  }
+
+  const skupina = DATA.pobocky.find(p => p.id === skupId);
+  const ids = parseSKUP(skupina?.skup);
+  const predajne = ids
+    ? DATA.pobocky.filter(p => ids.includes(p.id))
+    : DATA.pobocky.filter(p => p.id > 0);
+
+  predajne.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.nazov;
+    selPob.appendChild(opt);
+  });
+}
+
+function setDefaultDates() {
+  const dates = DATA.predaje.map(r => r.datum?.substring(0, 10)).filter(Boolean).sort();
+  if (dates.length) {
+    document.getElementById('dat-od').value = dates[0];
+    document.getElementById('dat-do').value = dates[dates.length - 1];
+  }
+}
+
+function getFilteredPobocIds() {
+  const pobocVal = parseInt(document.getElementById('sel-pobocka').value);
+  if (pobocVal) return [pobocVal];
+
+  const skupVal = parseInt(document.getElementById('sel-skupina').value);
+  if (skupVal) {
+    const skupina = DATA.pobocky.find(p => p.id === skupVal);
+    const ids = parseSKUP(skupina?.skup);
+    if (ids) return ids;
+  }
+
+  return DATA.pobocky.filter(p => p.id > 0).map(p => p.id);
+}
+
+function applyFilters() {
+  const datOd = document.getElementById('dat-od').value;
+  const datDo = document.getElementById('dat-do').value;
+  const pobocIds = getFilteredPobocIds();
+
+  const predaje = DATA.predaje.filter(r => {
+    const d = r.datum?.substring(0, 10);
+    return pobocIds.includes(r.poboc) &&
+      (!datOd || d >= datOd) &&
+      (!datDo || d <= datDo);
+  });
+
+  const zasoby = DATA.zasoby.filter(r => pobocIds.includes(r.poboc));
+  const top50 = DATA.top50.filter(r => pobocIds.includes(r.poboc));
+
+  updateKPI(predaje);
+  updateChartPredaje(predaje);
+  updateChartPobocky(predaje);
+  updateChartZasoby(zasoby);
+  updateTopTable(top50);
+}
+
+// ── KPI ───────────────────────────────────────────────────────────────────────
+function fmt(n, dec=0) {
+  return Number(n).toLocaleString('sk-SK', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function updateKPI(predaje) {
+  const trzba = predaje.reduce((s, r) => s + (r.trzba || 0), 0);
+  const doklady = predaje.reduce((s, r) => s + (r.pocet_dokladov || 0), 0);
+  const kusy = predaje.reduce((s, r) => s + (r.pocet_kusov || 0), 0);
+  const kosik = doklady > 0 ? trzba / doklady : 0;
+  const pobocky = new Set(predaje.map(r => r.poboc)).size;
+  const dni = new Set(predaje.map(r => r.datum?.substring(0, 10))).size;
+
+  document.getElementById('kpi-trzba').textContent = fmt(trzba, 0) + ' €';
+  document.getElementById('kpi-trzba-sub').textContent = `za ${dni} dní`;
+  document.getElementById('kpi-doklady').textContent = fmt(doklady);
+  document.getElementById('kpi-doklady-sub').textContent = `${fmt(doklady/Math.max(dni,1), 0)} / deň`;
+  document.getElementById('kpi-kosik').textContent = fmt(kosik, 2) + ' €';
+  document.getElementById('kpi-kusy').textContent = fmt(kusy);
+  document.getElementById('kpi-kusy-sub').textContent = `${fmt(kusy/Math.max(doklady,1), 1)} ks / doklad`;
+  document.getElementById('kpi-pobocky').textContent = pobocky;
+}
+
+// ── Grafy ─────────────────────────────────────────────────────────────────────
+const CHART_DEFAULTS = {
+  color: '#e8eaf0',
+  borderColor: '#2a3050',
+  plugins: {
+    legend: { labels: { color: '#8891aa', font: { size: 11 } } },
+    tooltip: { backgroundColor: '#1e2333', titleColor: '#e8eaf0', bodyColor: '#8891aa', borderColor: '#2a3050', borderWidth: 1 }
+  },
+  scales: {
+    x: { ticks: { color: '#8891aa', font: { size: 10 } }, grid: { color: '#2a3050' } },
+    y: { ticks: { color: '#8891aa', font: { size: 10 } }, grid: { color: '#2a3050' } }
+  }
+};
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function updateChartPredaje(predaje) {
+  destroyChart('predaje');
+  const byDay = {};
+  predaje.forEach(r => {
+    const d = r.datum?.substring(0, 10);
+    if (d) byDay[d] = (byDay[d] || 0) + (r.trzba || 0);
+  });
+  const labels = Object.keys(byDay).sort();
+  const values = labels.map(d => byDay[d]);
+
+  charts['predaje'] = new Chart(document.getElementById('chart-predaje'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Tržba (€)',
+        data: values,
+        borderColor: '#4f8ef7',
+        backgroundColor: 'rgba(79,142,247,0.08)',
+        borderWidth: 2,
+        pointRadius: labels.length > 90 ? 0 : 3,
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      ...CHART_DEFAULTS,
+      plugins: { ...CHART_DEFAULTS.plugins, legend: { display: false } },
+      scales: {
+        x: { ...CHART_DEFAULTS.scales.x, ticks: { ...CHART_DEFAULTS.scales.x.ticks, maxTicksLimit: 12 } },
+        y: { ...CHART_DEFAULTS.scales.y, ticks: { ...CHART_DEFAULTS.scales.y.ticks, callback: v => fmt(v) + ' €' } }
+      }
+    }
+  });
+}
+
+function updateChartPobocky(predaje) {
+  destroyChart('pobocky');
+  const byPob = {};
+  predaje.forEach(r => {
+    const key = r.pobocka_nazov || r.poboc;
+    byPob[key] = (byPob[key] || 0) + (r.trzba || 0);
+  });
+  const sorted = Object.entries(byPob).sort((a, b) => b[1] - a[1]).slice(0, 15);
+
+  charts['pobocky'] = new Chart(document.getElementById('chart-pobocky'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(([k]) => k.replace(/^\d+ /, '')),
+      datasets: [{
+        data: sorted.map(([, v]) => v),
+        backgroundColor: 'rgba(56,232,192,0.7)',
+        borderColor: '#38e8c0',
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y',
+      ...CHART_DEFAULTS,
+      plugins: { ...CHART_DEFAULTS.plugins, legend: { display: false } },
+      scales: {
+        x: { ...CHART_DEFAULTS.scales.x, ticks: { ...CHART_DEFAULTS.scales.x.ticks, callback: v => fmt(v) + ' €' } },
+        y: { ...CHART_DEFAULTS.scales.y, ticks: { ...CHART_DEFAULTS.scales.y.ticks, font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+function updateChartZasoby(zasoby) {
+  destroyChart('zasoby');
+  const byObdobie = {};
+  zasoby.forEach(r => {
+    byObdobie[r.obdobie] = (byObdobie[r.obdobie] || 0) + (r.stav_cena_celkom || 0);
+  });
+  const labels = Object.keys(byObdobie).sort();
+  const values = labels.map(k => byObdobie[k]);
+
+  charts['zasoby'] = new Chart(document.getElementById('chart-zasoby'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Hodnota zásob (€)',
+        data: values,
+        backgroundColor: 'rgba(247,184,79,0.7)',
+        borderColor: '#f7b84f',
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      ...CHART_DEFAULTS,
+      plugins: { ...CHART_DEFAULTS.plugins, legend: { display: false } },
+      scales: {
+        x: { ...CHART_DEFAULTS.scales.x },
+        y: { ...CHART_DEFAULTS.scales.y, ticks: { ...CHART_DEFAULTS.scales.y.ticks, callback: v => fmt(v) + ' €' } }
+      }
+    }
+  });
+}
+
+// ── Top tabuľka ───────────────────────────────────────────────────────────────
+function setTopMode(mode, btn) {
+  topMode = mode;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function updateTopTable(top50) {
+  const rankField = topMode === 'trzba' ? 'rank_trzba' : 'rank_ks';
+  const sorted = [...top50].sort((a, b) => a[rankField] - b[rankField]).slice(0, 50);
+
+  const wrap = document.getElementById('top-table-wrap');
+  if (!sorted.length) { wrap.innerHTML = '<div class="loading">Žiadne dáta</div>'; return; }
+
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Kód</th>
+          <th>Názov položky</th>
+          <th>Predajňa</th>
+          <th style="text-align:right">Tržba (€)</th>
+          <th style="text-align:right">Predané ks</th>
+          <th style="text-align:right">Dokladov</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map(r => {
+          const rank = r[rankField];
+          const cls = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-n';
+          return `<tr>
+            <td><span class="rank-badge ${cls}">${rank}</span></td>
+            <td style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${r.kod_polozky || ''}</td>
+            <td>${r.nazov_polozky || ''}</td>
+            <td style="color:var(--text2);font-size:12px">${r.pobocka_nazov || ''}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.trzba, 2)}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.predane_ks, 0)}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.pocet_dokladov, 0)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// ── Štart ─────────────────────────────────────────────────────────────────────
+(async () => {
+  await msalInstance.initialize();
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length > 0) {
+    msalInstance.setActiveAccount(accounts[0]);
+    await initApp();
+  }
+})();
+</script>
+</body>
+</html>
