@@ -382,7 +382,7 @@
   <div class="login-box">
     <div class="login-logo">Baris</div>
     <div class="login-sub">Obchodný dashboard · Prihláste sa Microsoft účtom</div>
-    <button class="btn-login" onclick="login()">Prihlásiť sa cez Microsoft</button>
+    <button class="btn-login" id="btn-login" onclick="login()" disabled>Inicializujem...</button>
   </div>
 </div>
 
@@ -892,6 +892,8 @@ let msalReady = false;
 (async () => {
   await msalInstance.initialize();
   msalReady = true;
+  const btn = document.getElementById('btn-login');
+  if (btn) { btn.disabled = false; btn.textContent = 'Prihlásiť sa cez Microsoft'; }
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length > 0) {
     msalInstance.setActiveAccount(accounts[0]);
