@@ -809,16 +809,20 @@ function updateChartZasoby(zasoby) {
   const values = labels.map(k => byObdobie[k]);
 
   charts['zasoby'] = new Chart(document.getElementById('chart-zasoby'), {
-    type: 'bar',
+    type: 'line',
     data: {
       labels,
       datasets: [{
         label: 'Hodnota zásob (€)',
         data: values,
-        backgroundColor: 'rgba(247,184,79,0.7)',
         borderColor: '#f7b84f',
-        borderWidth: 1,
-        borderRadius: 4
+        backgroundColor: 'rgba(247,184,79,0.08)',
+        borderWidth: 2,
+        pointRadius: 4,
+        pointBackgroundColor: '#f7b84f',
+        pointHoverRadius: 6,
+        tension: 0.3,
+        fill: true
       }]
     },
     options: {
