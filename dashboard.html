@@ -555,11 +555,13 @@ async function getSiteId() {
 
 async function fetchJson(filename) {
   const sid = await getSiteId();
-  const filePath = `${SP_FOLDER}/${filename}`;
-  const meta = await graphGet(
+  const filePath = encodeURIComponent(`Zdielane dokumenty/Shared Documents/dashboard_data/${filename}`).replace(/%2F/g, '/');
+  const resp = await graphGet(
     `https://graph.microsoft.com/v1.0/sites/${sid}/drive/root:/${filePath}`
   );
-  const r = await fetch(meta["@microsoft.graph.downloadUrl"]);
+  const downloadUrl = resp["@microsoft.graph.downloadUrl"];
+  if (!downloadUrl) throw new Error(`Chýba downloadUrl pre ${filename}`);
+  const r = await fetch(downloadUrl);
   const json = await r.json();
   return json.data || [];
 }
