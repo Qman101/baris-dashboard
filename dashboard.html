@@ -613,36 +613,36 @@ function setupFilters() {
 }
 
 function parseSKUP(skup) {
-  if (!skup) return null;
-  const inMatch = skup.match(/IN\s*\(([^)]+)\)/i);
+  if (!skup) return { type: 'all', ids: [] };
+  const inMatch = skup.match(/^\s*IN\s*\(([^)]+)\)/i);
   if (inMatch) {
-    return inMatch[1].split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x) && x > 0);
+    const ids = inMatch[1].split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x) && x > 0);
+    return { type: 'in', ids };
   }
-  return null;
+  const notInMatch = skup.match(/NOT\s+IN\s*\(([^)]+)\)/i);
+  if (notInMatch) {
+    const ids = notInMatch[1].split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+    return { type: 'notin', ids };
+  }
+  return { type: 'all', ids: [] };
+}
+
+function getPobockyForSkupina(skupId) {
+  const allPredajne = DATA.pobocky.filter(p => p.id > 0);
+  if (!skupId) return allPredajne;
+  const skupina = DATA.pobocky.find(p => p.id === skupId);
+  if (!skupina) return allPredajne;
+  const parsed = parseSKUP(skupina.skup);
+  if (parsed.type === 'in') return allPredajne.filter(p => parsed.ids.includes(p.id));
+  if (parsed.type === 'notin') return allPredajne.filter(p => !parsed.ids.includes(p.id));
+  return allPredajne;
 }
 
 function onSkupinaChange() {
-  const skupId = parseInt(document.getElementById('sel-skupina').value);
+  const skupId = parseInt(document.getElementById('sel-skupina').value) || null;
   const selPob = document.getElementById('sel-pobocka');
   selPob.innerHTML = '<option value="">Všetky</option>';
-
-  if (!skupId) {
-    DATA.pobocky.filter(p => p.id > 0).forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.nazov;
-      selPob.appendChild(opt);
-    });
-    return;
-  }
-
-  const skupina = DATA.pobocky.find(p => p.id === skupId);
-  const ids = parseSKUP(skupina?.skup);
-  const predajne = ids
-    ? DATA.pobocky.filter(p => ids.includes(p.id))
-    : DATA.pobocky.filter(p => p.id > 0);
-
-  predajne.forEach(p => {
+  getPobockyForSkupina(skupId).forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.id;
     opt.textContent = p.nazov;
@@ -659,17 +659,10 @@ function setDefaultDates() {
 }
 
 function getFilteredPobocIds() {
-  const pobocVal = parseInt(document.getElementById('sel-pobocka').value);
+  const pobocVal = parseInt(document.getElementById('sel-pobocka').value) || null;
   if (pobocVal) return [pobocVal];
-
-  const skupVal = parseInt(document.getElementById('sel-skupina').value);
-  if (skupVal) {
-    const skupina = DATA.pobocky.find(p => p.id === skupVal);
-    const ids = parseSKUP(skupina?.skup);
-    if (ids) return ids;
-  }
-
-  return DATA.pobocky.filter(p => p.id > 0).map(p => p.id);
+  const skupVal = parseInt(document.getElementById('sel-skupina').value) || null;
+  return getPobockyForSkupina(skupVal).map(p => p.id);
 }
 
 function applyFilters() {
