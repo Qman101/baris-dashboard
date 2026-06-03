@@ -555,9 +555,8 @@ async function getSiteId() {
 
 async function fetchJson(filename) {
   const sid = await getSiteId();
-  const filePath = encodeURIComponent(`Zdielane dokumenty/Shared Documents/dashboard_data/${filename}`).replace(/%2F/g, '/');
   const resp = await graphGet(
-    `https://graph.microsoft.com/v1.0/sites/${sid}/drive/root:/${filePath}`
+    `https://graph.microsoft.com/v1.0/sites/${sid}/drive/root:/Shared Documents/dashboard_data/${filename}`
   );
   const downloadUrl = resp["@microsoft.graph.downloadUrl"];
   if (!downloadUrl) throw new Error(`Chýba downloadUrl pre ${filename}`);
