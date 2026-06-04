@@ -466,6 +466,10 @@
         <div class="chart-title">Zásoby — hodnota po mesiacoch</div>
         <div class="chart-wrap"><canvas id="chart-zasoby"></canvas></div>
       </div>
+      <div class="chart-card full">
+        <div class="chart-title">Tržba po mesiacoch</div>
+        <div class="chart-wrap"><canvas id="chart-trzba-mes"></canvas></div>
+      </div>
     </div>
 
     <!-- Top 50 table -->
@@ -684,6 +688,7 @@ function applyFilters() {
   updateChartPredaje(predaje);
   updateChartPobocky(predaje);
   updateChartZasoby(zasoby);
+  updateChartTrzbaMes(predaje);
   updateTopTable(top50);
 }
 
@@ -710,7 +715,44 @@ function updateKPI(predaje) {
   document.getElementById('kpi-pobocky').textContent = pobocky;
 }
 
-// ── Grafy ─────────────────────────────────────────────────────────────────────
+function updateChartTrzbaMes(predaje) {
+  destroyChart('trzba-mes');
+  const byMes = {};
+  predaje.forEach(r => {
+    const mes = r.datum?.substring(0, 7);
+    if (mes) byMes[mes] = (byMes[mes] || 0) + (r.trzba || 0);
+  });
+  const labels = Object.keys(byMes).sort();
+  const values = labels.map(k => byMes[k]);
+
+  charts['trzba-mes'] = new Chart(document.getElementById('chart-trzba-mes'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Tržba (€)',
+        data: values,
+        borderColor: '#4f8ef7',
+        backgroundColor: 'rgba(79,142,247,0.08)',
+        borderWidth: 2,
+        pointRadius: 5,
+        pointBackgroundColor: '#4f8ef7',
+        pointHoverRadius: 7,
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      ...CHART_DEFAULTS,
+      plugins: { ...CHART_DEFAULTS.plugins, legend: { display: false } },
+      scales: {
+        x: { ...CHART_DEFAULTS.scales.x },
+        y: { ...CHART_DEFAULTS.scales.y, ticks: { ...CHART_DEFAULTS.scales.y.ticks, callback: v => fmt(v) + ' €' } }
+      }
+    }
+  });
+}
 const CHART_DEFAULTS = {
   color: '#e8eaf0',
   borderColor: '#2a3050',
