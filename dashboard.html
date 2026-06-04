@@ -846,8 +846,33 @@ function setTopMode(mode, btn) {
 }
 
 function updateTopTable(top50) {
-  const rankField = topMode === 'trzba' ? 'rank_trzba' : 'rank_ks';
-  const sorted = [...top50].sort((a, b) => a[rankField] - b[rankField]).slice(0, 50);
+  const rankField = topMode === 'trzba' ? 'trzba' : 'predane_ks';
+  
+  // Agregujeme naprieč predajňami
+  const byKod = {};
+  top50.forEach(r => {
+    const key = r.kod_polozky;
+    if (!byKod[key]) {
+      byKod[key] = {
+        kod_polozky: r.kod_polozky,
+        nazov_polozky: r.nazov_polozky,
+        pobocka_nazov: '',
+        trzba: 0,
+        predane_ks: 0,
+        pocet_dokladov: 0,
+        pobocky: new Set()
+      };
+    }
+    byKod[key].trzba += r.trzba || 0;
+    byKod[key].predane_ks += r.predane_ks || 0;
+    byKod[key].pocet_dokladov += r.pocet_dokladov || 0;
+    byKod[key].pobocky.add(r.pobocka_nazov);
+  });
+
+  const sorted = Object.values(byKod)
+    .sort((a, b) => b[rankField] - a[rankField])
+    .slice(0, 50)
+    .map((r, i) => ({ ...r, rank: i + 1, pobocka_nazov: r.pobocky.size === 1 ? [...r.pobocky][0] : `${r.pobocky.size} predajní` }));
 
   const wrap = document.getElementById('top-table-wrap');
   if (!sorted.length) { wrap.innerHTML = '<div class="loading">Žiadne dáta</div>'; return; }
@@ -859,7 +884,7 @@ function updateTopTable(top50) {
           <th>#</th>
           <th>Kód</th>
           <th>Názov položky</th>
-          <th>Predajňa</th>
+          <th>Predajne</th>
           <th style="text-align:right">Tržba (€)</th>
           <th style="text-align:right">Predané ks</th>
           <th style="text-align:right">Dokladov</th>
@@ -867,10 +892,9 @@ function updateTopTable(top50) {
       </thead>
       <tbody>
         ${sorted.map(r => {
-          const rank = r[rankField];
-          const cls = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-n';
+          const cls = r.rank === 1 ? 'rank-1' : r.rank === 2 ? 'rank-2' : r.rank === 3 ? 'rank-3' : 'rank-n';
           return `<tr>
-            <td><span class="rank-badge ${cls}">${rank}</span></td>
+            <td><span class="rank-badge ${cls}">${r.rank}</span></td>
             <td style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">${r.kod_polozky || ''}</td>
             <td>${r.nazov_polozky || ''}</td>
             <td style="color:var(--text2);font-size:12px">${r.pobocka_nazov || ''}</td>
