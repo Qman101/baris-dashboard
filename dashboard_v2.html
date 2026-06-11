@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baris Dashboard v2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://unpkg.com/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #181c27;
+    --bg3: #1e2333;
+    --border: #2a3050;
+    --accent: #4f8ef7;
+    --accent2: #38e8c0;
+    --accent3: #f7b84f;
+    --danger: #f74f6a;
+    --purple: #a78bfa;
+    --text: #e8eaf0;
+    --text2: #8891aa;
+    --font: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Login ── */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh;
+  }
+  .login-box {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; padding: 48px; text-align: center;
+    max-width: 400px; width: 100%;
+  }
+  .login-logo { font-size: 32px; font-weight: 700; letter-spacing: -1px; color: var(--accent); margin-bottom: 8px; }
+  .login-sub { color: var(--text2); font-size: 14px; margin-bottom: 32px; }
+  .btn-login {
+    background: var(--accent); color: #fff; border: none;
+    padding: 14px 32px; border-radius: 10px; font-size: 15px;
+    font-weight: 600; cursor: pointer; width: 100%;
+    transition: opacity 0.2s;
+  }
+  .btn-login:hover { opacity: 0.85; }
+  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-title { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; color: var(--accent); }
+  .header-sub { font-size: 12px; color: var(--text2); font-family: var(--font-mono); }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent2); margin-right: 6px; }
+
+  .main { padding: 20px 24px; max-width: 1800px; margin: 0 auto; }
+
+  /* ── Filters ── */
+  .filters {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+    align-items: end;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 6px; }
+  .filter-group label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text2);
+  }
+  .filter-group select, .filter-group input {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 12px; border-radius: 8px; font-size: 13px;
+    font-family: var(--font); outline: none; transition: border-color 0.2s;
+    width: 100%;
+  }
+  .filter-group select:focus, .filter-group input:focus { border-color: var(--accent); }
+  .btn-apply {
+    background: var(--accent); color: #fff; border: none;
+    padding: 9px 18px; border-radius: 8px; font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-apply:hover { opacity: 0.85; }
+  .btn-reset {
+    background: transparent; color: var(--text2); border: 1px solid var(--border);
+    padding: 9px 18px; border-radius: 8px; font-size: 13px;
+    font-weight: 600; cursor: pointer;
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex; gap: 4px; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 10px 18px; cursor: pointer; font-size: 13px;
+    font-weight: 600; color: var(--text2); border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── KPI cards ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin-bottom: 20px;
+  }
+  .kpi-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; position: relative; overflow: hidden;
+  }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 3px; background: var(--accent-color, var(--accent));
+  }
+  .kpi-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text2); margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-size: 24px; font-weight: 700; letter-spacing: -1px;
+    font-family: var(--font-mono);
+  }
+  .kpi-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+  /* ── Charts ── */
+  .charts-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;
+  }
+  .chart-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-title {
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text2); margin-bottom: 14px;
+  }
+  .chart-wrap { position: relative; height: 280px; }
+
+  /* ── Table ── */
+  .table-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; margin-bottom: 20px; overflow-x: auto;
+  }
+  .table-title {
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text2); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .tab-btns { display: flex; gap: 6px; margin-left: auto; }
+  .tab-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+    padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.6px; color: var(--text2);
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); cursor: pointer; }
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 6px; font-size: 10px;
+    font-weight: 700; font-family: var(--font-mono);
+  }
+  .rank-1 { background: #f7b84f22; color: var(--accent3); }
+  .rank-2 { background: #8891aa22; color: var(--text2); }
+  .rank-3 { background: #cd7f3222; color: #cd7f32; }
+  .rank-n { background: var(--bg3); color: var(--text2); }
+
+  .loading {
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px; color: var(--text2); font-size: 13px; gap: 10px;
+  }
+  .spinner {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 16px; width: 90%; max-width: 1100px;
+    max-height: 90vh; overflow-y: auto; padding: 28px;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 16px; right: 16px;
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2); width: 32px; height: 32px;
+    border-radius: 8px; cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-title {
+    font-size: 16px; font-weight: 700; margin-bottom: 4px;
+  }
+  .modal-subtitle { font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+  .modal-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;
+  }
+  .modal-info-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+  }
+  .modal-info-card .label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--text2); margin-bottom: 4px;
+  }
+  .modal-info-card .value {
+    font-size: 13px; color: var(--text);
+  }
+  .modal-info-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px; margin-bottom: 20px;
+  }
+  .modal-charts { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .modal-chart-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+  }
+  .modal-chart-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.6px; color: var(--text2); margin-bottom: 12px;
+  }
+  .modal-chart-wrap { height: 220px; position: relative; }
+
+  @media (max-width: 900px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .modal-charts { grid-template-columns: 1fr; }
+    .modal-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Baris</div>
+    <div class="login-sub">Dashboard · Prihláste sa Microsoft účtom</div>
+    <button class="btn-login" id="btn-login" onclick="login()" disabled>Inicializujem...</button>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" style="display:none">
+
+<header>
+  <div>
+    <div class="header-title">Baris Dashboard</div>
+    <div class="header-sub"><span class="status-dot"></span><span id="status-info">Načítavam...</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span id="user-name" style="font-size:13px;color:var(--text2)"></span>
+    <button onclick="logout()" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer">Odhlásiť</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="filter-group">
+      <label>Skupina predajní</label>
+      <select id="f-skupina-predajni"><option value="">Všetky</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Predajňa</label>
+      <select id="f-pobocka"><option value="">Všetky</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Hľadaj položku</label>
+      <input type="text" id="f-polozka" placeholder="kód alebo názov...">
+    </div>
+    <div class="filter-group">
+      <label>Sortiment</label>
+      <select id="f-sortiment">
+        <option value="">Všetky</option>
+        <option value="A">Sortiment A</option>
+        <option value="B">Sortiment B</option>
+        <option value="C">Sortiment C</option>
+        <option value="D">Sortiment D</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Kategória</label>
+      <select id="f-kategoria"><option value="">Všetky</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Skupina</label>
+      <select id="f-skupina"><option value="">Všetky</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Dodávateľ</label>
+      <select id="f-dodavatel"><option value="">Všetci</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Značka</label>
+      <select id="f-znacka"><option value="">Všetky</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Stav položky</label>
+      <select id="f-stav"><option value="">Všetky</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Dátum od</label>
+      <input type="date" id="f-dat-od">
+    </div>
+    <div class="filter-group">
+      <label>Dátum do</label>
+      <input type="date" id="f-dat-do">
+    </div>
+    <div class="filter-group" style="flex-direction:row;gap:8px;">
+      <button class="btn-apply" onclick="applyFilters()">Použiť</button>
+      <button class="btn-reset" onclick="resetFilters()">Reset</button>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent-color: var(--accent)">
+      <div class="kpi-label">Celková tržba</div>
+      <div class="kpi-value" id="kpi-trzba">—</div>
+      <div class="kpi-sub" id="kpi-trzba-sub"></div>
+    </div>
+    <div class="kpi-card" style="--accent-color: var(--accent2)">
+      <div class="kpi-label">Počet dokladov</div>
+      <div class="kpi-value" id="kpi-doklady">—</div>
+      <div class="kpi-sub" id="kpi-doklady-sub"></div>
+    </div>
+    <div class="kpi-card" style="--accent-color: var(--accent3)">
+      <div class="kpi-label">Priemerný nákup</div>
+      <div class="kpi-value" id="kpi-kosik">—</div>
+      <div class="kpi-sub">EUR / doklad</div>
+    </div>
+    <div class="kpi-card" style="--accent-color: var(--danger)">
+      <div class="kpi-label">Predané kusy</div>
+      <div class="kpi-value" id="kpi-kusy">—</div>
+      <div class="kpi-sub" id="kpi-kusy-sub"></div>
+    </div>
+    <div class="kpi-card" style="--accent-color: var(--purple)">
+      <div class="kpi-label">Počet predajní</div>
+      <div class="kpi-value" id="kpi-pobocky">—</div>
+      <div class="kpi-sub" id="kpi-poloziek-sub"></div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card full">
+      <div class="chart-title">Tržba po dňoch</div>
+      <div class="chart-wrap"><canvas id="chart-dni"></canvas></div>
+    </div>
+    <div class="chart-card full">
+      <div class="chart-title">Tržba po mesiacoch</div>
+      <div class="chart-wrap"><canvas id="chart-mes"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top 15 predajní podľa tržby</div>
+      <div class="chart-wrap"><canvas id="chart-pobocky"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Hodnota zásob po mesiacoch</div>
+      <div class="chart-wrap"><canvas id="chart-zasoby"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top kategórie</div>
+      <div class="chart-wrap"><canvas id="chart-kategorie"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top dodávatelia</div>
+      <div class="chart-wrap"><canvas id="chart-dodavatelia"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Top položky -->
+  <div class="table-card">
+    <div class="table-title">
+      Top 50 položiek
+      <div class="tab-btns">
+        <button class="tab-btn active" onclick="setTopMode('trzba', this)">Podľa tržby</button>
+        <button class="tab-btn" onclick="setTopMode('kusy', this)">Podľa kusov</button>
+        <button class="tab-btn" onclick="setTopMode('predajnost', this)">Podľa predajnosti</button>
+      </div>
+    </div>
+    <div id="top-table-wrap"><div class="loading"><div class="spinner"></div> Načítavam...</div></div>
+  </div>
+
+</div>
+
+<!-- Modal detail položky -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    <div class="modal-title" id="modal-nazov">—</div>
+    <div class="modal-subtitle" id="modal-kod">—</div>
+
+    <div class="modal-info-grid" id="modal-info"></div>
+
+    <div class="modal-charts">
+      <div class="modal-chart-card">
+        <div class="modal-chart-title">Vývoj predajov v čase</div>
+        <div class="modal-chart-wrap"><canvas id="modal-chart-dni"></canvas></div>
+      </div>
+      <div class="modal-chart-card">
+        <div class="modal-chart-title">Top 10 predajní</div>
+        <div class="modal-chart-wrap"><canvas id="modal-chart-pobocky"></canvas></div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <div class="modal-chart-title" style="margin-bottom:12px">Predajnosť a dostupnosť per predajňa</div>
+      <div id="modal-predajnost-wrap" style="overflow-x:auto"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "http://http://192.168.1.207:8000";
+let DATA = { pobocky: [], ciselniky: {} };
+let topMode = 'trzba';
+let charts = {};
+let modalCharts = {};
+
+function fmt(n, dec=0) {
+  return Number(n || 0).toLocaleString('sk-SK', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function getFilters() {
+  const f = {
+    skupina_predajni: document.getElementById('f-skupina-predajni').value || null,
+    pobocka: document.getElementById('f-pobocka').value || null,
+    polozka: document.getElementById('f-polozka').value || null,
+    sortiment: document.getElementById('f-sortiment').value || null,
+    kategoria: document.getElementById('f-kategoria').value || null,
+    skupina: document.getElementById('f-skupina').value || null,
+    dodavatel: document.getElementById('f-dodavatel').value || null,
+    znacka: document.getElementById('f-znacka').value || null,
+    stav: document.getElementById('f-stav').value || null,
+    dat_od: document.getElementById('f-dat-od').value || null,
+    dat_do: document.getElementById('f-dat-do').value || null,
+  };
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(f)) {
+    if (v) params.set(k, v);
+  }
+  return params.toString();
+}
+
+async function api(endpoint, params = "") {
+  const url = `${API}${endpoint}${params ? '?' + params : ''}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`API ${endpoint}: ${r.status}`);
+  return r.json();
+}
+
+async function initFilters() {
+  try {
+    const [pobocky, ciselniky, status] = await Promise.all([
+      api('/pobocky'),
+      api('/ciselniky'),
+      api('/status'),
+    ]);
+    DATA.pobocky = pobocky;
+    DATA.ciselniky = ciselniky;
+
+    document.getElementById('status-info').textContent =
+      `${fmt(status.rows.predaje_polozky)} riadkov · ${status.datum_od} – ${status.datum_do}`;
+
+    // Skupiny predajní (záporné ID)
+    const selSkup = document.getElementById('f-skupina-predajni');
+    pobocky.filter(p => p.id < 0).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.nazov;
+      selSkup.appendChild(opt);
+    });
+
+    // Predajne
+    const selPob = document.getElementById('f-pobocka');
+    pobocky.filter(p => p.id > 0).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.nazov;
+      selPob.appendChild(opt);
+    });
+
+    // Číselníky
+    ['kategoria', 'skupina', 'dodavatel', 'znacka', 'stav'].forEach(field => {
+      const key = field === 'znacka' ? 'znacky' : 
+                  field === 'dodavatel' ? 'dodavatelia' :
+                  field === 'stav' ? 'stavy' :
+                  field === 'kategoria' ? 'kategorie' : 'skupiny';
+      const sel = document.getElementById('f-' + field);
+      (ciselniky[key] || []).forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v; opt.textContent = v;
+        sel.appendChild(opt);
+      });
+      // Pri zmene jedného filtra preflittruj ostatné
+      sel.addEventListener('change', refreshDependentFilters);
+    });
+
+    // Default - posledných 30 dní
+    const dat_do = new Date(status.datum_do);
+    const dat_od = new Date(dat_do);
+    dat_od.setDate(dat_od.getDate() - 30);
+    document.getElementById('f-dat-od').value = dat_od.toISOString().slice(0, 10);
+    document.getElementById('f-dat-do').value = dat_do.toISOString().slice(0, 10);
+
+    applyFilters();
+  } catch (e) {
+    document.getElementById('top-table-wrap').innerHTML = 
+      `<div class="loading">Chyba pripojenia k API: ${e.message}</div>`;
+  }
+}
+
+function resetFilters() {
+  document.querySelectorAll('.filters select').forEach(s => s.value = '');
+  document.getElementById('f-dat-od').value = '';
+  document.getElementById('f-dat-do').value = '';
+  refreshDependentFilters().then(applyFilters);
+}
+
+async function refreshDependentFilters() {
+  const params = new URLSearchParams();
+  ['kategoria', 'skupina', 'dodavatel', 'znacka', 'stav'].forEach(field => {
+    const v = document.getElementById('f-' + field).value;
+    if (v) params.set(field, v);
+  });
+
+  const filtered = await api('/ciselniky_filtered', params.toString());
+
+  ['kategoria', 'skupina', 'dodavatel', 'znacka', 'stav'].forEach(field => {
+    const key = field === 'znacka' ? 'znacky' : 
+                field === 'dodavatel' ? 'dodavatelia' :
+                field === 'stav' ? 'stavy' :
+                field === 'kategoria' ? 'kategorie' : 'skupiny';
+    const sel = document.getElementById('f-' + field);
+    const currentValue = sel.value;
+    const newValues = filtered[key] || [];
+
+    // Zachovaj aktuálnu hodnotu aj keď nie je v zozname (aby sa nestratila)
+    sel.innerHTML = '<option value="">Všetky</option>';
+    newValues.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v;
+      sel.appendChild(opt);
+    });
+    if (currentValue) {
+      if (!newValues.includes(currentValue)) {
+        const opt = document.createElement('option');
+        opt.value = currentValue; opt.textContent = currentValue;
+        sel.appendChild(opt);
+      }
+      sel.value = currentValue;
+    }
+  });
+}
+
+async function applyFilters() {
+  const params = getFilters();
+
+  // KPI
+  try {
+    const kpi = await api('/kpi', params);
+    document.getElementById('kpi-trzba').textContent = fmt(kpi.trzba, 0) + ' €';
+    document.getElementById('kpi-trzba-sub').textContent = `za ${fmt(kpi.pocet_dni)} dní`;
+    document.getElementById('kpi-doklady').textContent = fmt(kpi.doklady);
+    document.getElementById('kpi-doklady-sub').textContent = 
+      kpi.pocet_dni > 0 ? `${fmt(kpi.doklady / kpi.pocet_dni, 0)} / deň` : '';
+    document.getElementById('kpi-kosik').textContent = fmt(kpi.priemerny_nakup, 2) + ' €';
+    document.getElementById('kpi-kusy').textContent = fmt(kpi.kusy);
+    document.getElementById('kpi-kusy-sub').textContent = 
+      kpi.doklady > 0 ? `${fmt(kpi.kusy / kpi.doklady, 1)} ks / doklad` : '';
+    document.getElementById('kpi-pobocky').textContent = fmt(kpi.pocet_predajni);
+    document.getElementById('kpi-poloziek-sub').textContent = `${fmt(kpi.pocet_poloziek)} položiek`;
+  } catch (e) { console.error(e); }
+
+  // Charts paralelne
+  loadChartDni(params);
+  loadChartMes(params);
+  loadChartPobocky(params);
+  loadChartZasoby(params);
+  loadChartKategorie(params);
+  loadChartDodavatelia(params);
+  loadTopPolozky(params);
+}
+
+// ── Chart defaults ──────────────────────────────────────────────────────────
+const CD = {
+  color: '#e8eaf0',
+  plugins: {
+    legend: { labels: { color: '#8891aa', font: { size: 11 } } },
+    tooltip: { backgroundColor: '#1e2333', titleColor: '#e8eaf0',
+               bodyColor: '#8891aa', borderColor: '#2a3050', borderWidth: 1 }
+  },
+  scales: {
+    x: { ticks: { color: '#8891aa', font: { size: 10 } }, grid: { color: '#2a3050' } },
+    y: { ticks: { color: '#8891aa', font: { size: 10 } }, grid: { color: '#2a3050' } }
+  }
+};
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+async function loadChartDni(params) {
+  const data = await api('/predaje_dni', params);
+  destroyChart('dni');
+  charts.dni = new Chart(document.getElementById('chart-dni'), {
+    type: 'line',
+    data: {
+      labels: data.map(r => r.datum),
+      datasets: [{
+        label: 'Tržba (€)', data: data.map(r => r.trzba),
+        borderColor: '#4f8ef7', backgroundColor: 'rgba(79,142,247,0.08)',
+        borderWidth: 2, pointRadius: data.length > 60 ? 0 : 3, tension: 0.3, fill: true
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, ...CD,
+      plugins: { ...CD.plugins, legend: { display: false } },
+      scales: {
+        x: { ...CD.scales.x, ticks: { ...CD.scales.x.ticks, maxTicksLimit: 12 } },
+        y: { ...CD.scales.y, ticks: { ...CD.scales.y.ticks, callback: v => fmt(v) + ' €' } }
+      }
+    }
+  });
+}
+
+async function loadChartMes(params) {
+  const data = await api('/predaje_mes', params);
+  destroyChart('mes');
+  charts.mes = new Chart(document.getElementById('chart-mes'), {
+    type: 'line',
+    data: {
+      labels: data.map(r => r.obdobie),
+      datasets: [{
+        label: 'Tržba (€)', data: data.map(r => r.trzba),
+        borderColor: '#38e8c0', backgroundColor: 'rgba(56,232,192,0.08)',
+        borderWidth: 2, pointRadius: 5, tension: 0.3, fill: true
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, ...CD,
+      plugins: { ...CD.plugins, legend: { display: false } },
+      scales: { x: CD.scales.x, y: { ...CD.scales.y, ticks: { ...CD.scales.y.ticks, callback: v => fmt(v) + ' €' } } }
+    }
+  });
+}
+
+async function loadChartPobocky(params) {
+  const data = await api('/top_pobocky', params + '&limit=15');
+  destroyChart('pobocky');
+  charts.pobocky = new Chart(document.getElementById('chart-pobocky'), {
+    type: 'bar',
+    data: {
+      labels: data.map(r => r.pobocka_nazov || String(r.poboc)),
+      datasets: [{ data: data.map(r => r.trzba),
+        backgroundColor: 'rgba(56,232,192,0.7)', borderColor: '#38e8c0',
+        borderWidth: 1, borderRadius: 4 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', ...CD,
+      plugins: { ...CD.plugins, legend: { display: false } },
+      scales: {
+        x: { ...CD.scales.x, ticks: { ...CD.scales.x.ticks, callback: v => fmt(v) + ' €' } },
+        y: { ...CD.scales.y, ticks: { ...CD.scales.y.ticks, font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+async function loadChartZasoby(params) {
+  const data = await api('/zasoby_detailne', params);
+  destroyChart('zasoby');  charts.zasoby = new Chart(document.getElementById('chart-zasoby'), {
+    type: 'line',
+    data: {
+      labels: data.map(r => r.obdobie),
+      datasets: [{
+        label: 'Hodnota zásob (€)', data: data.map(r => r.stav_cena),
+        borderColor: '#f7b84f', backgroundColor: 'rgba(247,184,79,0.08)',
+        borderWidth: 2, pointRadius: 4, tension: 0.3, fill: true
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, ...CD,
+      plugins: { ...CD.plugins, legend: { display: false } },
+      scales: { x: CD.scales.x, y: { ...CD.scales.y, ticks: { ...CD.scales.y.ticks, callback: v => fmt(v) + ' €' } } }
+    }
+  });
+}
+
+async function loadChartKategorie(params) {
+  const data = await api('/top_kategorie', params + '&uroven=kategoria&limit=10');
+  destroyChart('kategorie');
+  charts.kategorie = new Chart(document.getElementById('chart-kategorie'), {
+    type: 'bar',
+    data: {
+      labels: data.map(r => r.nazov),
+      datasets: [{ data: data.map(r => r.trzba),
+        backgroundColor: 'rgba(167,139,250,0.7)', borderColor: '#a78bfa',
+        borderWidth: 1, borderRadius: 4 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', ...CD,
+      plugins: { ...CD.plugins, legend: { display: false } },
+      scales: {
+        x: { ...CD.scales.x, ticks: { ...CD.scales.x.ticks, callback: v => fmt(v) + ' €' } },
+        y: { ...CD.scales.y, ticks: { ...CD.scales.y.ticks, font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+async function loadChartDodavatelia(params) {
+  const data = await api('/top_kategorie', params + '&uroven=dodavatel&limit=10');
+  destroyChart('dodavatelia');
+  charts.dodavatelia = new Chart(document.getElementById('chart-dodavatelia'), {
+    type: 'bar',
+    data: {
+      labels: data.map(r => r.nazov),
+      datasets: [{ data: data.map(r => r.trzba),
+        backgroundColor: 'rgba(247,79,106,0.7)', borderColor: '#f74f6a',
+        borderWidth: 1, borderRadius: 4 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', ...CD,
+      plugins: { ...CD.plugins, legend: { display: false } },
+      scales: {
+        x: { ...CD.scales.x, ticks: { ...CD.scales.x.ticks, callback: v => fmt(v) + ' €' } },
+        y: { ...CD.scales.y, ticks: { ...CD.scales.y.ticks, font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+async function loadChartZasobyPorovnanie(params) {
+  const p = new URLSearchParams(params);
+  const filtered = new URLSearchParams();
+  ['skupina_predajni', 'pobocka', 'kategoria', 'skupina', 'dodavatel', 'znacka', 'stav'].forEach(k => {
+    if (p.get(k)) filtered.set(k, p.get(k));
+  });
+  const data = await api('/zasoby_porovnanie', filtered.toString());
+  destroyChart('zasoby-porovnanie');
+
+  const cela = data.cela_siet || [];
+  const vybrana = data.vybrana || [];
+  const nazov = data.vybrana_nazov || 'Vybraná';
+
+  // Zlúčime všetky obdobia
+  const obdobia = [...new Set([...cela.map(r => r.obdobie), ...vybrana.map(r => r.obdobie)])].sort();
+  const celaMap = Object.fromEntries(cela.map(r => [r.obdobie, r.stav_cena]));
+  const vybranaMap = Object.fromEntries(vybrana.map(r => [r.obdobie, r.stav_cena]));
+
+  charts['zasoby-porovnanie'] = new Chart(document.getElementById('chart-zasoby-porovnanie'), {
+    type: 'line',
+    data: {
+      labels: obdobia,
+      datasets: [
+        {
+          label: 'Celá sieť (€)',
+          data: obdobia.map(o => celaMap[o] || 0),
+          borderColor: '#4f8ef7', backgroundColor: 'rgba(79,142,247,0.08)',
+          borderWidth: 2, pointRadius: 4, tension: 0.3, fill: true,
+          yAxisID: 'y'
+        },
+        {
+          label: `${nazov} (€)`,
+          data: obdobia.map(o => vybranaMap[o] || 0),
+          borderColor: '#f7b84f', backgroundColor: 'rgba(247,184,79,0.08)',
+          borderWidth: 2, pointRadius: 4, tension: 0.3, fill: true,
+          yAxisID: 'y'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, ...CD,
+      scales: {
+        x: { ...CD.scales.x },
+        y: { ...CD.scales.y, ticks: { ...CD.scales.y.ticks, callback: v => fmt(v) + ' €' } }
+      }
+    }
+  });
+}
+
+async function loadObratkovost(params) {
+  const data = await api('/obratkovost', params + '&limit=50');
+  const wrap = document.getElementById('top-table-wrap');
+  if (!data.data || !data.data.length) {
+    wrap.innerHTML = '<div class="loading">Žiadne dáta — položky bez zásoby</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>#</th><th>Kód</th><th>Názov</th><th>Kategória</th>
+        <th style="text-align:right">Zásoba (ks)</th>
+        <th style="text-align:right">Zásoba (€)</th>
+        <th style="text-align:right">Predaj ks/deň</th>
+        <th style="text-align:right">Obrátkovosť</th>
+        <th style="text-align:right">Tržba (€)</th>
+      </tr></thead>
+      <tbody>
+        ${data.data.map((r, i) => {
+          const dni = r.obratkovost_dni;
+          const color = dni <= 7 ? 'var(--danger)' : dni <= 14 ? 'var(--accent3)' : 'var(--accent2)';
+          const cls = i < 1 ? 'rank-1' : i < 2 ? 'rank-2' : i < 3 ? 'rank-3' : 'rank-n';
+          return `<tr onclick="openPolozkaDetail(${r.kod_id})" style="cursor:pointer">
+            <td><span class="rank-badge ${cls}">${i+1}</span></td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2)">${r.int_kod || ''}</td>
+            <td>${r.nazov || ''}</td>
+            <td style="color:var(--text2);font-size:11px">${r.kategoria || ''}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.zasoba_ks, 0)}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.zasoba_hod, 2)}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.avg_ks_den, 2)}</td>
+            <td style="text-align:right">
+              <span style="color:${color};font-family:var(--font-mono);font-weight:600">
+                ${dni} dní
+              </span>
+            </td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.trzba, 2)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div style="font-size:11px;color:var(--text2);margin-top:8px;padding:0 4px">
+      * Zásoba = posledný dostupný mesiac · Zoradené od najkritickejšej (najmenej dní zásoby)
+      · 🔴 ≤7 dní · 🟡 ≤14 dní · 🟢 >14 dní    </div>
+  `;
+}
+
+function setTopMode(mode, btn) {
+  topMode = mode;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const params = getFilters();
+  if (mode === 'predajnost') {
+    loadPredajnostTable(params);
+  } else {
+    loadTopPolozky(params);
+  }
+}
+
+async function loadTopPolozky(params) {
+  if (topMode === 'predajnost') return;
+  const data = await api('/top_polozky', params + '&order_by=' + topMode + '&limit=50');
+  const wrap = document.getElementById('top-table-wrap');
+  if (!data.length) { wrap.innerHTML = '<div class="loading">Žiadne dáta</div>'; return; }
+
+  wrap.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>#</th><th>Kód</th><th>Názov</th><th>Kategória</th><th>Dodávateľ</th>
+        <th style="text-align:right">Tržba (€)</th>
+        <th style="text-align:right">Predané ks</th>
+        <th style="text-align:right">Dokladov</th>
+        <th style="text-align:right">Predajní</th>
+      </tr></thead>
+      <tbody>
+        ${data.map((r, i) => {
+          const rank = i + 1;
+          const cls = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-n';
+          return `<tr onclick="openPolozkaDetail(${r.kod_id})" style="cursor:pointer">
+            <td><span class="rank-badge ${cls}">${rank}</span></td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2)">${r.int_kod || ''}</td>
+            <td>${r.nazov || ''}</td>
+            <td style="color:var(--text2);font-size:11px">${r.kategoria || ''}</td>
+            <td style="color:var(--text2);font-size:11px">${r.dodavatel || ''}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.trzba, 2)}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.kusy, 0)}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.doklady, 0)}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.pocet_predajni, 0)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function stavColor(stav) {
+  if (stav === 'OK') return 'var(--accent2)';
+  if (stav === 'Nedostatok zásob') return 'var(--danger)';
+  if (stav === 'Výpadok predaja') return 'var(--accent3)';
+  return 'var(--text2)';
+}
+
+async function loadPredajnostTable(params) {
+  const data = await api('/predajnost', params + '&limit=50');
+  const wrap = document.getElementById('top-table-wrap');
+  if (!data.data || !data.data.length) {
+    wrap.innerHTML = '<div class="loading">Žiadne dáta</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>#</th><th>Kód</th><th>Názov</th><th>Kategória</th>
+        <th style="text-align:right">Dni predaja</th>
+        <th style="text-align:right">Predajnosť</th>
+        <th style="text-align:right">Predajní</th>
+        <th style="text-align:right">Tržba (€)</th>
+        <th style="text-align:right">Kusy</th>
+      </tr></thead>
+      <tbody>
+        ${data.data.map((r, i) => {
+          const pct = r.predajnost_pct || 0;
+          const pctColor = pct >= 80 ? 'var(--accent2)' : pct >= 50 ? 'var(--accent3)' : 'var(--danger)';
+          const cls = i < 1 ? 'rank-1' : i < 2 ? 'rank-2' : i < 3 ? 'rank-3' : 'rank-n';
+          return `<tr onclick="openPolozkaDetail(${r.kod_id})" style="cursor:pointer">
+            <td><span class="rank-badge ${cls}">${i+1}</span></td>
+            <td style="font-family:var(--font-mono);font-size:11px;color:var(--text2)">${r.int_kod || ''}</td>
+            <td>${r.nazov || ''}</td>
+            <td style="color:var(--text2);font-size:11px">${r.kategoria || ''}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.dni_predaja, 0)}</td>
+            <td style="text-align:right">
+              <span style="color:${pctColor};font-family:var(--font-mono);font-weight:600">${pct}%</span>
+            </td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.pocet_predajni, 0)}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.trzba, 2)}</td>
+            <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.kusy, 0)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  if (modalCharts.dni) { modalCharts.dni.destroy(); delete modalCharts.dni; }
+  if (modalCharts.pobocky) { modalCharts.pobocky.destroy(); delete modalCharts.pobocky; }
+}
+
+async function openPolozkaDetail(kod_id) {
+  try {
+    const params = getFilters();
+  const data = await api(`/polozka/${kod_id}`, params);
+  const info = data.info || {};
+
+  document.getElementById('modal-nazov').textContent = info.nazov || '—';
+  document.getElementById('modal-kod').textContent = 
+    `${info.int_kod || ''} · ${info.kategoria || ''} · ${info.skupina || ''}`;
+
+  // Info karty
+  const infoFields = [
+    { label: 'Dodávateľ', value: info.dodavatel },
+    { label: 'Značka', value: info.obch_znacka },
+    { label: 'Podskupina', value: info.podskupina },
+    { label: 'Stav', value: info.stav },
+    { label: 'DPH', value: info.dph != null ? info.dph + ' %' : null },
+    { label: 'Min. zásoba', value: info.minimum != null ? fmt(info.minimum, 0) + ' ks' : null },
+    { label: 'Max. zásoba', value: info.maximum != null ? fmt(info.maximum, 0) + ' ks' : null },
+    { label: 'Veľké balenie', value: info.velke_bal != null ? fmt(info.velke_bal, 0) + ' ks' : null },
+    { label: 'Sortiment A', value: info.sortiment_a === 1 ? '✓' : '✗' },
+    { label: 'Sortiment B', value: info.sortiment_b === 1 ? '✓' : '✗' },
+    { label: 'Sortiment C', value: info.sortiment_c === 1 ? '✓' : '✗' },
+    { label: 'Sortiment D', value: info.sortiment_d === 1 ? '✓' : '✗' },
+  ];
+
+  document.getElementById('modal-info').innerHTML = infoFields
+    .filter(f => f.value != null)
+    .map(f => `
+      <div class="modal-info-card">
+        <div class="label">${f.label}</div>
+        <div class="value">${f.value}</div>
+      </div>
+    `).join('');
+
+  // Graf vývoja predajov
+  if (modalCharts.dni) modalCharts.dni.destroy();
+  const dni = data.predaje_den || [];
+  modalCharts.dni = new Chart(document.getElementById('modal-chart-dni'), {
+    type: 'line',
+    data: {
+      labels: dni.map(r => r.datum),
+      datasets: [
+        {
+          label: 'Tržba (€)',
+          data: dni.map(r => r.trzba),
+          borderColor: '#4f8ef7', backgroundColor: 'rgba(79,142,247,0.08)',
+          borderWidth: 2, pointRadius: dni.length > 60 ? 0 : 3, tension: 0.3, fill: true,
+          yAxisID: 'y'
+        },
+        {
+          label: 'Kusy',
+          data: dni.map(r => r.kusy),
+          borderColor: '#38e8c0', backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: dni.length > 60 ? 0 : 3, tension: 0.3,
+          borderDash: [4, 4],
+          yAxisID: 'y2'
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#8891aa', font: { size: 11 } } },
+        tooltip: { backgroundColor: '#1e2333', titleColor: '#e8eaf0', bodyColor: '#8891aa', borderColor: '#2a3050', borderWidth: 1 }
+      },
+      scales: {
+        x: { ticks: { color: '#8891aa', font: { size: 10 }, maxTicksLimit: 8 }, grid: { color: '#2a3050' } },
+        y: {
+          ticks: { color: '#4f8ef7', font: { size: 10 }, callback: v => fmt(v) + ' €' },
+          grid: { color: '#2a3050' }, position: 'left'
+        },
+        y2: {
+          ticks: { color: '#38e8c0', font: { size: 10 }, callback: v => fmt(v) + ' ks' },
+          grid: { display: false }, position: 'right'
+        }
+      }
+    }
+  });
+
+  // Graf top predajní
+  if (modalCharts.pobocky) modalCharts.pobocky.destroy();
+  const pob = (data.predaje_pobocky || []).slice(0, 10);
+  modalCharts.pobocky = new Chart(document.getElementById('modal-chart-pobocky'), {
+    type: 'bar',
+    data: {
+      labels: pob.map(r => (r.pobocka_nazov || r.poboc)),
+      datasets: [{
+        data: pob.map(r => r.trzba),
+        backgroundColor: 'rgba(56,232,192,0.7)', borderColor: '#38e8c0',
+        borderWidth: 1, borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y', ...CD,
+      plugins: { ...CD.plugins, legend: { display: false } },
+      scales: {
+        x: { ...CD.scales.x, ticks: { ...CD.scales.x.ticks, callback: v => fmt(v) + ' €' } },
+        y: { ...CD.scales.y, ticks: { ...CD.scales.y.ticks, font: { size: 10 } } }
+      }
+    }
+  });
+
+  document.getElementById('modal-overlay').classList.add('open');
+
+  // Predajnosť per predajňa
+  const predajnostData = await api(`/predajnost_polozka/${kod_id}`, params);
+  const predajnostWrap = document.getElementById('modal-predajnost-wrap');
+  if (predajnostData.data && predajnostData.data.length) {
+    predajnostWrap.innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Predajňa</th>
+          <th style="text-align:right">Dni predaja</th>
+          <th style="text-align:right">Predajnosť</th>
+          <th style="text-align:right">Priem. zásoba</th>
+          <th style="text-align:right">Tržba (€)</th>
+          <th style="text-align:right">Kusy</th>
+          <th>Stav</th>
+        </tr></thead>
+        <tbody>
+          ${predajnostData.data.map(r => {
+            const pct = r.predajnost_pct || 0;
+            const pctColor = pct >= 80 ? 'var(--accent2)' : pct >= 50 ? 'var(--accent3)' : 'var(--danger)';
+            return `<tr>
+              <td style="font-size:11px">${r.pobocka_nazov || r.poboc}</td>
+              <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.dni_predaja, 0)}</td>
+              <td style="text-align:right">
+                <span style="color:${pctColor};font-family:var(--font-mono);font-weight:600">${pct}%</span>
+              </td>
+              <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.avg_zasoba_ks, 1)}</td>
+              <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.trzba, 2)}</td>
+              <td style="text-align:right;font-family:var(--font-mono)">${fmt(r.kusy, 0)}</td>
+              <td style="font-size:11px;color:${stavColor(r.stav_dostupnosti)}">${r.stav_dostupnosti}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  } else {
+    predajnostWrap.innerHTML = '<div style="color:var(--text2);font-size:12px">Žiadne dáta o dostupnosti</div>';
+  }
+  } catch(e) {
+    console.error('openPolozkaDetail error:', e);
+    alert('Chyba pri načítaní detailu: ' + e.message);
+  }
+}
+
+// ── MSAL konfigurácia ─────────────────────────────────────────────────────────
+const TENANT_ID = "9f2932b2-e127-4c0e-95e7-a60b0f80a73f";
+const CLIENT_ID = "449a1aee-a1e7-44a6-a008-2f1faf9e1b94";
+const SCOPES = ["https://graph.microsoft.com/User.Read"];
+
+const msalConfig = {
+  auth: {
+    clientId: CLIENT_ID,
+    authority: `https://login.microsoftonline.com/${TENANT_ID}`,
+    redirectUri: "https://qman101.github.io/baris-dashboard/dashboard_v2.html"
+  },
+  cache: { cacheLocation: "sessionStorage" }
+};
+
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+let msalReady = false;
+
+async function login() {
+  try {
+    if (!msalReady) { await msalInstance.initialize(); msalReady = true; }
+    const result = await msalInstance.loginPopup({ scopes: SCOPES });
+    msalInstance.setActiveAccount(result.account);
+    showApp();
+  } catch(e) {
+    alert("Prihlásenie zlyhalo: " + e.message);
+  }
+}
+
+function logout() {
+  msalInstance.logoutPopup();
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function showApp() {
+  const account = msalInstance.getActiveAccount();
+  document.getElementById('user-name').textContent = account?.name || account?.username || '';
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  initFilters();
+}
+
+(async () => {
+  await msalInstance.initialize();
+  msalReady = true;
+  const btn = document.getElementById('btn-login');
+  if (btn) { btn.disabled = false; btn.textContent = 'Prihlásiť sa cez Microsoft'; }
+  const accounts = msalInstance.getAllAccounts();
+  if (accounts.length > 0) {
+    msalInstance.setActiveAccount(accounts[0]);
+    showApp();
+  }
+})();
+
+</script>
+</div><!-- #app -->
+</body>
+</html>
